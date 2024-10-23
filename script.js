@@ -1,9 +1,13 @@
-// Chart.js for graph
+// Biến toàn cục
+let time = 0;
+let interval;
+
+// Tạo biểu đồ tốc độ
 let ctx = document.getElementById('speed-chart').getContext('2d');
 let speedChart = new Chart(ctx, {
     type: 'line',
     data: {
-        labels: [], // Time labels
+        labels: [], // Thời gian đo
         datasets: [
             {
                 label: 'Download Speed (Mbps)',
@@ -22,44 +26,48 @@ let speedChart = new Chart(ctx, {
     options: {
         scales: {
             x: {
-                type: 'linear',
-                position: 'bottom'
+                title: {
+                    display: true,
+                    text: 'Time (s)'
+                }
+            },
+            y: {
+                title: {
+                    display: true,
+                    text: 'Speed (Mbps)'
+                },
+                beginAtZero: true,
+                max: 100 // Đặt giá trị tối đa là 100
             }
         }
     }
 });
 
-// Variables to store time and data
-let time = 0;
-let interval;
-let downloadSpeedData = [];
-let uploadSpeedData = [];
-
-// Initialize the gauge objects
+// Tạo các gauge cho download và upload
 let downloadGauge = new Gauge(document.getElementById("download-gauge")).setOptions({
-    angle: 0.15, // Gauge angle
-    lineWidth: 0.2, // The thickness of the gauge arc
-    radiusScale: 1, // Relative radius
+    angle: 0.15, 
+    lineWidth: 0.2,
+    radiusScale: 1,
     pointer: {
-        length: 0.6, // Relative to gauge radius
-        strokeWidth: 0.035, // The thickness
-        color: '#1BF2DD' // Fill color
+        length: 0.6,
+        strokeWidth: 0.035,
+        color: '#1BF2DD'
     },
     staticLabels: {
-        font: "10px Arial",  // Gauge labels font
-        labels: [0, 100, 200, 300, 400, 500],  // Speed labels
-        color: "#FFFFFF",  // Color for the labels
-        fractionDigits: 0  // Labels decimal points
+        font: "10px Arial",
+        labels: [0, 20, 40, 60, 80, 100], // Cập nhật nhãn thành 0-100
+        color: "#FFFFFF",
+        fractionDigits: 0
     },
-    limitMax: true, // Max value fixed
-    colorStart: '#1BF2DD', // Start color
-    colorStop: '#1BF2DD', // End color
-    strokeColor: '#E0E0E0', // Background color
-    highDpiSupport: true // High resolution support
+    limitMax: true,
+    colorStart: '#1BF2DD',
+    colorStop: '#1BF2DD',
+    strokeColor: '#E0E0E0',
+    highDpiSupport: true
 });
-downloadGauge.maxValue = 500; // Max value for download speed
-downloadGauge.setMinValue(0);  // Min value
-downloadGauge.animationSpeed = 32; // Speed of animation
+downloadGauge.maxValue = 100; // Cập nhật giá trị tối đa cho gauge
+downloadGauge.setMinValue(0);
+downloadGauge.animationSpeed = 32;
 
 let uploadGauge = new Gauge(document.getElementById("upload-gauge")).setOptions({
     angle: 0.15,
@@ -71,8 +79,8 @@ let uploadGauge = new Gauge(document.getElementById("upload-gauge")).setOptions(
         color: '#F20574'
     },
     staticLabels: {
-        font: "10px Arial",  // Labels font
-        labels: [0, 100, 200, 300, 400, 500],  // Speed labels
+        font: "10px Arial",
+        labels: [0, 20, 40, 60, 80, 100], // Cập nhật nhãn thành 0-100
         color: "#FFFFFF",
         fractionDigits: 0
     },
@@ -82,23 +90,72 @@ let uploadGauge = new Gauge(document.getElementById("upload-gauge")).setOptions(
     strokeColor: '#E0E0E0',
     highDpiSupport: true
 });
-uploadGauge.maxValue = 500; // Max value for upload speed
-uploadGauge.setMinValue(0);  
+uploadGauge.maxValue = 100; // Cập nhật giá trị tối đa cho gauge
+uploadGauge.setMinValue(0);
 uploadGauge.animationSpeed = 32;
 
-// Start Test Function
-function startTest() {
+// Hàm tính toán ping
+async function calculatePing() {
+    let startTime = Date.now();
+    try {
+        await fetch('https://www.google.com', { method: 'HEAD' });
+        let ping = Date.now() - startTime;
+        document.getElementById('ping').innerText = `${ping} ms`;
+        return ping;
+    } catch (error) {
+        console.error('Ping calculation error:', error);
+        document.getElementById('ping').innerText = 'Error';
+        return null;
+    }
+}
+
+// Hàm tính toán tốc độ download giả lập
+function simulateDownloadSpeed() {
+    let downloadSpeed = Math.random() * 100; // Tốc độ ngẫu nhiên từ 0 đến 100 Mbps
+    document.getElementById('download').innerText = `${downloadSpeed.toFixed(2)} Mbps`;
+    downloadGauge.set(downloadSpeed);
+    return downloadSpeed;
+}
+
+// Hàm tính toán tốc độ upload giả lập
+function simulateUploadSpeed() {
+    let uploadSpeed = Math.random() * 100; // Tốc độ ngẫu nhiên từ 0 đến 100 Mbps
+    document.getElementById('upload').innerText = `${uploadSpeed.toFixed(2)} Mbps`;
+    uploadGauge.set(uploadSpeed);
+    return uploadSpeed;
+}
+
+// Hàm bắt đầu quá trình kiểm tra tốc độ
+async function startTest() {
     document.getElementById('status').innerText = 'Testing...';
-    
-    // Reset data
+
+    // Reset lại các giá trị trước đó
     time = 0;
-    downloadSpeedData = [];
-    uploadSpeedData = [];
     speedChart.data.labels = [];
     speedChart.data.datasets[0].data = [];
     speedChart.data.datasets[1].data = [];
     speedChart.update();
 
-    // Start interval to simulate speed test every second
+    // Tính ping
+    await calculatePing();
+
+    // Bắt đầu đo tốc độ sau mỗi giây
     interval = setInterval(() => {
-        let ping = Math.floor(Math.random() * 50) + 20; // random ping between 20
+        let downloadSpeed = simulateDownloadSpeed();
+        let uploadSpeed = simulateUploadSpeed();
+
+        // Cập nhật biểu đồ
+        speedChart.data.labels.push(time);
+        speedChart.data.datasets[0].data.push(downloadSpeed);
+        speedChart.data.datasets[1].data.push(uploadSpeed);
+        speedChart.update();
+
+        time++;
+
+        // Dừng sau 30 giây
+        if (time >= 30) {
+            clearInterval(interval);
+            document.getElementById('status').innerText = 'Test Completed';
+        }
+    }, 1000);
+}
